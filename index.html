@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3864">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Replanteo">
+<title>Replanteo final</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="rep.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <strong>Replanteo final</strong>
+    <span id="hdrInfo" class="muted small">—</span>
+  </div>
+  <span id="netBadge" class="badge">…</span>
+</header>
+
+<main>
+  <!-- ======================= ESTRUCTURAS ======================= -->
+  <section id="tab-est" class="tab active" aria-label="Estructuras">
+    <div id="noCat" class="card warn hidden">
+      <b>Falta el catálogo de estructuras.</b>
+      <p>Vaya a <b>Ajustes</b> y cargue el libro <i>REPLANTEO FINAL POROTOBANGO</i> (.xlsx). Trae las medidas de diseño leídas de los planos.</p>
+    </div>
+    <div class="card">
+      <div class="gpsbar"><span id="gpsLive" class="small">GPS: —</span><button class="btn light small" id="btnGpsLive">📍 Ubicarme</button></div>
+      <input id="eBuscar" type="search" placeholder="Buscar: UBS-06, pase, purga, beneficiario…">
+      <div class="chips" id="eCats"></div>
+      <div class="row2">
+        <label>Mostrar<select id="eFiltro">
+          <option value="todo">Todas</option><option value="sin">Sin visitar</option><option value="vis">Visitadas</option>
+          <option value="pend">Pendientes de enviar</option><option value="nueva">Agregadas en campo</option></select></label>
+        <label>Orden<select id="eOrden"><option value="id">Por código</option><option value="cerca">Más cercanas (GPS)</option></select></label>
+      </div>
+      <div id="eResumen" class="muted small"></div>
+    </div>
+    <div id="eLista"></div>
+    <button class="btn" id="btnNueva">＋ Nueva estructura (no figura en el plano)</button>
+  </section>
+
+  <!-- ======================= FICHA ======================= -->
+  <section id="tab-ficha" class="tab" aria-label="Ficha">
+    <button class="link" id="btnVolver">‹ Volver a la lista</button>
+    <div class="card fhead">
+      <div class="fid" id="fId"></div>
+      <div class="fnom" id="fNom"></div>
+      <div class="small muted" id="fSub"></div>
+      <div id="fNota" class="msg warn hidden"></div>
+      <div id="fPrev" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h3>Ubicación</h3>
+      <div id="fDis" class="small"></div>
+      <div id="fGps" class="gpsbox">Sin GPS en esta visita.</div>
+      <div class="row2">
+        <button type="button" class="btn primary small" id="btnGpsProm">📍 Tomar GPS (promedio)</button>
+        <button type="button" class="btn light small" id="btnGpsQuitar">Quitar</button>
+      </div>
+      <div class="muted small">Párese sobre la estructura (centro o esquina que indique en Observación). Espere a que el ± baje.</div>
+    </div>
+
+    <div class="card">
+      <h3>Visita</h3>
+      <div class="row2">
+        <label>Fecha<input type="date" id="vFecha"></label>
+        <label>Estado de la estructura<select id="vEstado">
+          <option value="">— elegir —</option><option>CONSTRUIDA</option><option>POR CONCLUIR</option><option>NO EJECUTADA</option></select></label>
+      </div>
+      <label id="vAvWrap">Avance físico estimado (%)<input id="vAvance" inputmode="decimal" placeholder="Solo si está por concluir"></label>
+    </div>
+
+    <div id="fComps"></div>
+
+    <div class="card">
+      <h3>Planilla adicional (metrado tipo planilla)</h3>
+      <div class="muted small">Para lo que no está en la ficha: N° veces × largo × ancho × alto.</div>
+      <div id="plaLista"></div>
+      <button type="button" class="btn light small" id="btnPla">＋ Agregar línea</button>
+    </div>
+
+    <div class="card">
+      <h3>Fotos</h3>
+      <div id="fThumbs" class="thumbs big"></div>
+      <div class="row2">
+        <label class="btn primary small">📷 Tomar foto<input id="fFotoCam" type="file" accept="image/*" capture="environment" hidden></label>
+        <label class="btn light small">🖼 De la galería<input id="fFotoGal" type="file" accept="image/*" hidden></label>
+      </div>
+      <div class="muted small">Al tomarla se abre el editor: dibuje cotas y escriba la medida; se copia a la ficha.</div>
+    </div>
+
+    <div class="card">
+      <label>Observación de la visita<textarea id="vObs" rows="3" placeholder="Diferencias, modificaciones, referencias del punto GPS…"></textarea></label>
+      <div id="vMsg" class="msg hidden"></div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="btnGuardar">Guardar visita</button>
+        <button type="button" class="btn light" id="btnBorrarVis">Eliminar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= RECORRIDO ======================= -->
+  <section id="tab-trk" class="tab" aria-label="Recorrido">
+    <div class="card">
+      <h3>Recorrido de tubería (trazo con GPS)</h3>
+      <label>Tramo<input id="tTramo" list="dlTramos" placeholder="Ej. Línea de conducción CAP-01 → DES-01"></label>
+      <datalist id="dlTramos"></datalist>
+      <div class="row2">
+        <label>Diámetro<input id="tDiam" list="dlDiam" placeholder='Ej. 2"'></label>
+        <label>Material<select id="tMat"><option>HDPE</option><option>PVC</option><option>F°G°</option><option>OTRO</option></select></label>
+      </div>
+      <datalist id="dlDiam"><option value='2"'><option value='1 1/2"'><option value='1"'><option value='3/4"'><option value='1/2"'><option value='3"'></datalist>
+      <div class="row2">
+        <label>Clase / tipo<input id="tClase" placeholder="Ej. C-10, enterrada, anclada a talud"></label>
+        <label>Guardar punto cada (m)<input id="tPaso" inputmode="decimal" value="5"></label>
+      </div>
+      <div id="tEstado" class="sendbox small">Sin recorrido activo.</div>
+      <div class="row2">
+        <button class="btn primary" id="btnTrkIni">▶ Iniciar</button>
+        <button class="btn" id="btnTrkFin" disabled>■ Terminar</button>
+      </div>
+      <div class="row2">
+        <select id="tPtoTipo"><option>CODO</option><option>TEE</option><option>REDUCCIÓN</option><option>VÁLVULA</option><option>CRUCE DE QUEBRADA</option>
+          <option>ANCLAJE</option><option>CAMBIO DE DIÁMETRO</option><option>CAMBIO DE TERRENO</option><option>INICIO/FIN DE PASE AÉREO</option><option>OTRO</option></select>
+        <button class="btn light" id="btnTrkPto" disabled>📌 Marcar punto</button>
+      </div>
+      <div class="muted small">Mantenga la pantalla encendida y la app abierta mientras camina: el teléfono deja de registrar si se bloquea la pantalla.</div>
+    </div>
+    <div id="tLista"></div>
+  </section>
+
+  <!-- ======================= ENVIAR ======================= -->
+  <section id="tab-send" class="tab" aria-label="Enviar">
+    <div class="card">
+      <h3>Enviar al Excel</h3>
+      <p class="small">Con señal, toque <b>1. Enviar datos</b> y en el menú de compartir elija <b>Drive</b> y la carpeta <b>REPLANTEO POROTOBANGO</b>. Luego envíe las fotos (por grupos).</p>
+      <div id="sendResumen" class="sendbox"></div>
+      <button class="btn primary" id="btnEnviarDatos">1. Enviar datos (CSV)</button>
+      <button class="btn" id="btnEnviarFotos">2. Enviar fotos</button>
+      <div id="sendMsg" class="msg hidden"></div>
+    </div>
+    <div class="card">
+      <h3>Exportar para planos</h3>
+      <p class="small">Con lo que hay en ESTE teléfono (el Excel consolida todos los teléfonos).</p>
+      <button class="btn light" id="btnScr">AutoCAD: script de puntos y trazos (.scr)</button>
+      <button class="btn light" id="btnKml">Google Earth: puntos y recorridos (.kml)</button>
+      <button class="btn light" id="btnPenz">Puntos P,N,E,Z,D (.csv)</button>
+    </div>
+    <div class="card">
+      <h3>Envíos anteriores</h3>
+      <div id="lotes" class="small"></div>
+    </div>
+  </section>
+
+  <!-- ======================= AJUSTES ======================= -->
+  <section id="tab-cfg" class="tab" aria-label="Ajustes">
+    <div class="card">
+      <h3>Responsable</h3>
+      <label>Nombre (sale en el sello de las fotos)<input id="cfgUsuario" placeholder="Ej. JOSIMAR PRADA" maxlength="40"></label>
+      <button class="btn light small" id="btnUsuario">Guardar nombre</button>
+    </div>
+    <div class="card">
+      <h3>Catálogo de estructuras (desde el Excel)</h3>
+      <div id="catInfo" class="small"></div>
+      <p class="small">Elija el libro <i>REPLANTEO FINAL POROTOBANGO</i> desde Google Drive. Trae tipos, campos con medida de diseño, estructuras con coordenadas y la tolerancia. Vuelva a cargarlo para ver qué visitas ya están en el Excel.</p>
+      <label class="btn primary">📂 Cargar / actualizar catálogo
+        <input id="cfgXlsx" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </label>
+      <div id="catMsg" class="msg hidden"></div>
+    </div>
+    <div class="card">
+      <h3>Fotos</h3>
+      <label class="chk"><input type="checkbox" id="cfgOrig" checked> Enviar también la foto original (sin anotaciones)</label>
+      <label class="chk"><input type="checkbox" id="cfgSello" checked> Sello automático en fotos nuevas (código, fecha, UTM, responsable)</label>
+    </div>
+    <div class="card">
+      <h3>Datos del teléfono</h3>
+      <div id="stoInfo" class="small"></div>
+      <button class="btn light small" id="btnRespaldo">Descargar respaldo (JSON, sin fotos)</button>
+      <button class="btn light small" id="btnLiberar">Liberar espacio (borrar fotos ya enviadas)</button>
+    </div>
+    <div class="card small">
+      <h3>Instalar en el teléfono</h3>
+      <p><b>iPhone (Safari):</b> Compartir ⬆ → «Agregar a pantalla de inicio».</p>
+      <p><b>Android (Chrome):</b> menú ⋮ → «Instalar app».</p>
+      <p>Ábrala siempre desde el ícono: funciona sin señal.</p>
+      <p class="muted">Coordenadas: UTM WGS84 zona 18 Sur (las del expediente). Versión <span id="ver"></span></p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom">
+  <button data-tab="tab-est" class="on">▦<span>Estructuras</span></button>
+  <button data-tab="tab-trk">〰<span>Recorrido</span></button>
+  <button data-tab="tab-send">⇪<span>Enviar <b id="pendBadge"></b></span></button>
+  <button data-tab="tab-cfg">⚙<span>Ajustes</span></button>
+</nav>
+
+<div id="toast" class="toast hidden"></div>
+<div id="modal" class="modal hidden"><div class="mcard" id="mcard"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js" crossorigin="anonymous" defer></script>
+<script src="utm.js" defer></script>
+<script src="editor.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
