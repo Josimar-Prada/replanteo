@@ -1,0 +1,52 @@
+APP «REPLANTEO FINAL» — Porotobango
+===================================
+
+Esta carpeta es la app completa. No contiene datos de la obra: el catálogo (estructuras, medidas de diseño,
+coordenadas, beneficiarios) se carga en cada teléfono desde el Excel REPLANTEO FINAL POROTOBANGO.xlsx
+(Ajustes → Cargar catálogo). Así, aunque la página es pública, los datos de la obra no lo son.
+
+PUBLICARLA (una sola vez, igual que Metrados y Almacén)
+1. Entre a https://github.com con su cuenta (josimar-prada).
+2. Botón «+» → New repository → nombre: replanteo → Public → Create repository.
+3. «uploading an existing file» → arrastre TODOS los archivos de esta carpeta (menos este LEEME si quiere) → «Commit changes».
+4. Settings → Pages → Source: «Deploy from a branch» → Branch: main, carpeta / (root) → Save.
+5. En 1–2 minutos queda en:  https://josimar-prada.github.io/replanteo/
+
+INSTALAR EN EL TELÉFONO
+- iPhone: abrir el enlace en Safari → Compartir → «Agregar a pantalla de inicio».
+- Android: abrir el enlace en Chrome → menú ⋮ → «Instalar app».
+- Abrir desde el ícono → Ajustes: escribir su nombre (sale en el sello de las fotos) y «Cargar catálogo»
+  (elegir REPLANTEO FINAL POROTOBANGO.xlsx desde Google Drive).
+- Permita la ubicación (GPS) y la cámara cuando lo pida.
+
+USO EN CAMPO (funciona sin señal)
+1. Estructuras → buscar (UBS-06, pase, purga, nombre del beneficiario) u «Orden: Más cercanas».
+   La ficha dice a cuántos metros y en qué dirección está el punto del plano.
+2. Tomar GPS (promedio de ~20 s, párese en el centro o en una esquina y anótelo en Observación).
+3. Elegir el estado: CONSTRUIDA / POR CONCLUIR (con % de avance) / NO EJECUTADA.
+4. Medir: cada campo muestra la medida del plano; al escribir la de campo calcula la diferencia
+   (verde = dentro de la tolerancia, rojo = fuera). Campos de texto: CONFORME / DIFERENTE / NO VISIBLE.
+   Si el plano tiene dos diseños (captación, caseta UBS, caja de purga, válvula de aire, pases), elija
+   en «Tipo según lo construido».
+5. Fotos: al tomarla se abre el editor. Herramienta «Cota»: arrastre de un extremo al otro, elija el campo
+   («¿Qué medida es?») y escriba la medida EN METROS → queda escrita en la foto Y se copia a la ficha.
+   Si no elige campo, la medida igual llega al Excel (hoja ANOTACIONES), pero no se compara con el plano. También texto, flecha, lápiz y
+   círculo; colores, tamaño, deshacer. El sello (código, fecha, UTM, responsable) se agrega solo.
+   Se guarda la foto original y la anotada (se envía solo la anotada; la original se puede activar en
+   Ajustes); toque una miniatura para volver a editarla.
+6. Planilla adicional: para lo que no está en la ficha (N° veces × largo × ancho × alto).
+7. «Nueva estructura» SOLO para lo que no figura en el plano (p. ej. válvulas de purga que faltan).
+   La app muestra antes las estructuras del plano a menos de 80 m: si es una de ellas, ábrala.
+8. Recorrido: para trazar la tubería caminando (guarda un punto cada 5 m y los puntos que marque:
+   codo, válvula, cruce de quebrada…). Mantenga la pantalla encendida.
+Todo se guarda solo mientras escribe.
+
+ENVIAR
+Con señal: Enviar → «1. Enviar datos» → Drive → carpeta REPLANTEO POROTOBANGO. Luego «2. Enviar fotos»
+(grupos de 10). Después de cada grupo la app pregunta «¿Se subieron?»: Aceptar solo si Drive terminó;
+si no, Cancelar y vuelva a tocar el botón. En la PC: abrir el Excel → Datos → Actualizar todo → Guardar.
+Enviar → Exportar: script de AutoCAD (.scr), KML para Google Earth y puntos P,N,E,Z,D de este teléfono.
+
+PRECISIÓN
+El GPS del celular da ±3 a 10 m en planta (la altitud es solo referencial). Úselo para ubicar y dibujar
+la planta general; las dimensiones de las estructuras se miden con wincha.

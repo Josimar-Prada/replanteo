@@ -2,14 +2,15 @@
    Catálogo (tipos, campos con medida de diseño, estructuras con coordenadas) desde el Excel REPLANTEO FINAL.
    Datos solo en el teléfono (IndexedDB). Envío: CSV + fotos por el menú Compartir → Google Drive → Power Query del Excel. */
 'use strict';
-const APP_VERSION = '1.0.0';
-const FOTO_LADO = 1600, FOTO_CAL = 0.72, FOTOS_POR_ENVIO = 6, GPS_SEG = 20, TRK_ACC_MAX = 25;
+const APP_VERSION = '1.1.0';
+const FOTO_LADO = 1600, FOTO_CAL = 0.72, FOTOS_POR_ENVIO = 10, GPS_SEG = 20, TRK_ACC_MAX = 25;
 const COLS = {
   vis: ['VISITA_ID', 'FECHA', 'EST_ID', 'NOMBRE', 'NUEVA', 'COMPONENTES', 'ESTADO_OBRA', 'AVANCE', 'LATITUD', 'LONGITUD', 'ALTITUD', 'PRECISION_M',
     'N_LECTURAS', 'ESTE', 'NORTE', 'DIST_DISENO_M', 'OBSERVACION', 'FOTOS', 'N_MEDIDAS', 'USUARIO', 'CREADO', 'EDITADO'],
   med: ['MED_ID', 'VISITA_ID', 'FECHA', 'EST_ID', 'TIPO_ID', 'CAMPO_ID', 'GRUPO', 'CAMPO', 'UND', 'TIPO_DATO', 'DISENO', 'MEDIDO', 'DIFERENCIA',
     'VERIFICACION', 'TEXTO_CAMPO', 'USUARIO', 'CREADO'],
   pla: ['LIN_ID', 'VISITA_ID', 'FECHA', 'EST_ID', 'ITEM', 'DESCRIPCION', 'UND', 'N_VECES', 'LARGO', 'ANCHO', 'ALTO', 'PARCIAL', 'USUARIO'],
+  ano: ['ANO_ID', 'VISITA_ID', 'FECHA', 'EST_ID', 'FOTO', 'N', 'HERRAMIENTA', 'TEXTO', 'CAMPO_ID', 'CAMPO', 'MEDIDO', 'UND', 'USUARIO', 'CREADO'],
   trk: ['TRK_ID', 'TRAMO', 'DIAMETRO', 'MATERIAL', 'CLASE', 'PTO_N', 'FECHA_HORA', 'TIPO_PTO', 'OBS', 'LATITUD', 'LONGITUD', 'ALTITUD', 'PRECISION_M',
     'ESTE', 'NORTE', 'DIST_ACUM_M', 'USUARIO'],
 };
@@ -21,7 +22,7 @@ function catDe(id) {
 
 const $ = id => document.getElementById(id);
 const S = { cat: null, tipo: new Map(), campos: new Map(), est: new Map(), alt: new Map(), idsVis: new Set(), nuevas: [], vis: [], trk: [], lotes: [],
-  user: '', opts: { orig: true, sello: true }, gps: null, watch: null, v: null, est0: null, cat0: '', prep: null, trkAct: null, trkWatch: null, wake: null };
+  user: '', opts: { orig: false, sello: true, v: 2 }, gps: null, watch: null, v: null, est0: null, cat0: '', prep: null, trkAct: null, trkWatch: null, wake: null };
 
 /* ---------------- IndexedDB ---------------- */
 let DB;
@@ -374,7 +375,7 @@ function setDesdeFoto(campoId, v) { S.v.med[campoId] = { v }; }
 async function editarFoto(fid) {
   const f = await get1('fotos', fid); if (!f) return;
   const r = await Editor.abrir({ orig: f.orig, ann: f.ann, stamp: selloDe(f), stampOn: f.stampOn, campos: camposEditor(), onCota: setDesdeFoto, nueva: false });
-  if (r && r.accion === 'guardar') { f.anot = r.anot; f.ann = r.ann; f.stampOn = r.stampOn; f.env_a = false; await put('fotos', f); }
+  if (r && r.accion === 'guardar') { f.anot = r.anot; f.ann = r.ann; f.stampOn = r.stampOn; f.env_a = false; f.ano_env = false; await put('fotos', f); }
   await guardarVisita(true); renderComps(); await renderFotos();
 }
 const _urls = [];
@@ -439,8 +440,29 @@ function elegirTipos(titulo, marcados) {
     $('mno').onclick = () => { cerrarModal(); ok(null); };
   });
 }
+function cercanas(radio) {
+  if (!S.gps || Date.now() - S.gps.t > 120000) return null;
+  return [...S.est.values()].map(e => { const v = visitasDe(e.id).filter(x => x.gps).pop(); const x = e.x ?? v?.gps.e, y = e.y ?? v?.gps.nn;
+    return { e, d: x == null ? null : Math.hypot(S.gps.e - x, S.gps.n - y) }; }).filter(o => o.d !== null && o.d <= radio).sort((a, b) => a.d - b.d).slice(0, 8);
+}
+function preguntarCercanas() {
+  return new Promise(ok => {
+    const L = cercanas(80);
+    if (!L) { modal(`<h3>Nueva estructura</h3><p class="small">Sin GPS reciente no puedo mostrar las estructuras del plano que están cerca. Toque <b>📍 Ubicarme</b> y espere el ±, o busque en la lista por nombre (captación, filtro, purga…).</p>
+      <div class="actions"><button class="btn primary" id="mok">Crear de todos modos</button><button class="btn light" id="mno">Cancelar</button></div>`);
+      $('mok').onclick = () => { cerrarModal(); ok('nueva'); }; $('mno').onclick = () => { cerrarModal(); ok(null); }; return; }
+    if (!L.length) { ok('nueva'); return; }
+    modal(`<h3>¿Es alguna de estas?</h3><p class="small">Estas estructuras del plano están a menos de 80 m de usted. Si es una de ellas, ábrala en vez de crear una nueva (así no se duplica).</p>
+      <div class="mlist">${L.map(o => `<label data-id="${esc(o.e.id)}" style="cursor:pointer"><b>${esc(o.e.id)}</b>&nbsp;${esc(o.e.nom)} <span class="muted">· ${Math.round(o.d)} m</span></label>`).join('')}</div>
+      <div class="actions"><button class="btn primary" id="mok">No, es nueva</button><button class="btn light" id="mno">Cancelar</button></div>`);
+    $('mcard').querySelector('.mlist').onclick = ev => { const l = ev.target.closest('[data-id]'); if (l) { cerrarModal(); ok({ abrir: l.dataset.id }); } };
+    $('mok').onclick = () => { cerrarModal(); ok('nueva'); }; $('mno').onclick = () => { cerrarModal(); ok(null); };
+  });
+}
 async function nuevaEstructura() {
   if (!S.cat) { toast('Primero cargue el catálogo'); return; }
+  gpsVivo();
+  const r = await preguntarCercanas(); if (!r) return; if (r.abrir) { abrirFicha(r.abrir); return; }
   const comps = await elegirTipos('Nueva estructura: ¿qué tipo es?', []); if (!comps || !comps.length) return;
   const pref = (comps[0].split('_')[0] || 'EST').replace('GEN', 'EST');
   let k = 1, id; do { id = `${pref}-N${pad(k++)}`; } while (S.est.has(id));
@@ -537,6 +559,20 @@ function filasTrk(t) {
       LATITUD: +p.lat.toFixed(7), LONGITUD: +p.lon.toFixed(7), ALTITUD: p.alt === null || p.alt === undefined ? null : Math.round(p.alt * 10) / 10, PRECISION_M: Math.round(p.acc * 10) / 10,
       ESTE: p.e.toFixed(3), NORTE: p.n.toFixed(3), DIST_ACUM_M: Math.round(acc * 100) / 100, USUARIO: t.usuario }; });
 }
+async function filasAnotaciones() {
+  const out = [], fids = [];
+  for (const f of await getAll('fotos')) {
+    if (f.ano_env) continue;
+    const v = S.vis.find(x => x.id === f.vis); fids.push(f.id);
+    (f.ann || []).forEach((a, i) => {
+      if (!a.txt && a.v === undefined) return;
+      const c = a.campo ? campoById(a.campo) : null;
+      out.push({ ANO_ID: f.id + '|' + (i + 1), VISITA_ID: f.vis, FECHA: v ? v.fecha : f.creado.slice(0, 10), EST_ID: f.est, FOTO: f.base + '.jpg', N: i + 1,
+        HERRAMIENTA: a.t, TEXTO: a.txt || '', CAMPO_ID: a.campo || '', CAMPO: c ? c.campo : '', MEDIDO: a.v ?? null, UND: c ? c.und : '', USUARIO: (v && v.usuario) || S.user, CREADO: f.creado });
+    });
+  }
+  return { rows: out, fids };
+}
 async function fotosPendientes() {
   const out = [];
   for (const f of (await getAll('fotos')).sort((a, b) => a.base.localeCompare(b.base))) {
@@ -551,16 +587,18 @@ async function prepararEnvio() {
   const V = [], M = [], P = [], T = [];
   for (const v of pv) { const r = await filasVisita(v); V.push(r.vis); M.push(...r.meds); P.push(...r.pla); }
   for (const t of pt) T.push(...filasTrk(t));
+  const A = await filasAnotaciones();
   const d = new Date(), stamp = `${hoy(d).replace(/-/g, '')}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`, user = slug(S.user) || 'USUARIO';
   const files = [];
   if (V.length) files.push(new File([csv(COLS.vis, V)], `rep_vis_${stamp}_${user}.csv`, { type: 'text/csv' }));
   if (M.length) files.push(new File([csv(COLS.med, M)], `rep_med_${stamp}_${user}.csv`, { type: 'text/csv' }));
   if (P.length) files.push(new File([csv(COLS.pla, P)], `rep_pla_${stamp}_${user}.csv`, { type: 'text/csv' }));
   if (T.length) files.push(new File([csv(COLS.trk, T)], `rep_trk_${stamp}_${user}.csv`, { type: 'text/csv' }));
+  if (A.rows.length) files.push(new File([csv(COLS.ano, A.rows)], `rep_ano_${stamp}_${user}.csv`, { type: 'text/csv' }));
   const fp = await fotosPendientes();
-  S.prep = { pv, pt, files, fp, lote: fp.slice(0, FOTOS_POR_ENVIO) };
+  S.prep = { pv, pt, files, fp, lote: fp.slice(0, FOTOS_POR_ENVIO), afids: A.rows.length ? A.fids : [] };
   const mb = (fp.reduce((a, x) => a + x.file.size, 0) / 1048576).toFixed(1);
-  $('sendResumen').innerHTML = `<b>${pv.length}</b> visitas (${M.length} medidas, ${P.length} líneas de planilla) · <b>${pt.length}</b> recorridos (${T.length} puntos)<br>
+  $('sendResumen').innerHTML = `<b>${pv.length}</b> visitas (${M.length} medidas, ${P.length} líneas de planilla) · <b>${pt.length}</b> recorridos (${T.length} puntos) · <b>${A.rows.length}</b> medidas/textos escritos en fotos<br>
     ${files.length ? 'Archivos: ' + files.map(f => `<i>${esc(f.name)}</i>`).join(', ') : 'Nada pendiente.'}<br><b>${fp.length}</b> fotos por enviar (${mb} MB), en grupos de ${FOTOS_POR_ENVIO}.`;
   $('btnEnviarDatos').disabled = !files.length; $('btnEnviarFotos').disabled = !fp.length;
   $('btnEnviarFotos').textContent = fp.length ? `2. Enviar fotos (${Math.min(FOTOS_POR_ENVIO, fp.length)} de ${fp.length})` : '2. Enviar fotos';
@@ -570,16 +608,17 @@ function descargar(file) { const a = document.createElement('a'); a.href = URL.c
 async function compartir(files, titulo) {
   if (puedeCompartir(files)) { try { await navigator.share({ files, title: titulo }); return true; } catch (e) { if (e.name === 'AbortError') return false; throw e; } }
   files.forEach(descargar);
-  return confirm('Los archivos se descargaron. ¿Ya los subió a Google Drive → REPLANTEO POROTOBANGO?');
+  return true;
 }
 async function enviarDatos() {
   const P = S.prep; if (!P || !P.files.length) return; msg('sendMsg');
   try {
-    if (!await compartir(P.files, 'Replanteo — datos')) { msg('sendMsg', 'Envío cancelado. Todo sigue pendiente.', 'warn'); return; }
+    try { await compartir(P.files, 'Replanteo — datos'); } catch (e) { if (e.name === 'NotAllowedError' || e.name === 'DataError') throw e; }
     if (!confirm('¿Guardó los archivos en Google Drive → REPLANTEO POROTOBANGO? (Aceptar = marcar como enviados)')) { msg('sendMsg', 'No se marcó nada: puede volver a enviar.', 'warn'); return; }
     const lote = { id: uuid(), cuando: ahoraISO(), nv: P.pv.length, nt: P.pt.length, files: P.files.map(f => f.name), ids: P.pv.map(v => v.id) };
     for (const v of P.pv) { v.estado = 'enviado'; v.lote = lote.id; await put('vis', v); }
     for (const t of P.pt) { t.estado = 'enviado'; await put('trk', t); }
+    for (const id of P.afids) { const f = await get1('fotos', id); if (f) { f.ano_env = true; await put('fotos', f); } }
     S.lotes.unshift(lote); await setMeta('lotes', S.lotes.slice(0, 200));
     msg('sendMsg', `✔ Enviado: ${P.pv.length} visitas y ${P.pt.length} recorridos. Ahora envíe las fotos. En la PC: Datos → Actualizar todo.`, 'ok');
   } catch (e) { msg('sendMsg', '✖ No se pudo compartir: ' + e.message, 'err'); }
@@ -588,7 +627,10 @@ async function enviarDatos() {
 async function enviarFotos() {
   const P = S.prep; if (!P || !P.lote.length) return;
   try {
-    if (!await compartir(P.lote.map(x => x.file), 'Replanteo — fotos')) { msg('sendMsg', 'Envío de fotos cancelado.', 'warn'); return; }
+    let ok = false;
+    try { ok = await compartir(P.lote.map(x => x.file), 'Replanteo — fotos'); } catch (e) { if (e.name === 'NotAllowedError' || e.name === 'DataError') throw e; }
+    if (!confirm(`¿Se subieron estas ${P.lote.length} fotos a Google Drive → REPLANTEO POROTOBANGO?\n(Aceptar = marcarlas como enviadas y pasar al siguiente grupo)`)) {
+      msg('sendMsg', ok ? 'No se marcaron: puede volver a enviarlas.' : 'Envío de fotos cancelado: siguen pendientes.', 'warn'); renderTodo(); return; }
     for (const x of P.lote) { const f = await get1('fotos', x.f.id); if (f) { if (x.k === 'a') f.env_a = true; else f.env_o = true; await put('fotos', f); } }
     msg('sendMsg', `✔ ${P.lote.length} fotos enviadas.` + (P.fp.length > P.lote.length ? ' Toque otra vez para el siguiente grupo.' : ''), 'ok');
   } catch (e) { msg('sendMsg', '✖ No se pudo compartir: ' + e.message, 'err'); }
@@ -699,7 +741,7 @@ async function init() {
   $('ver').textContent = APP_VERSION;
   DB = await idb();
   S.vis = await getAll('vis'); S.trk = await getAll('trk'); S.nuevas = await getAll('est');
-  S.user = (await getMeta('user')) || ''; S.lotes = (await getMeta('lotes')) || []; S.opts = { ...S.opts, ...((await getMeta('opts')) || {}) };
+  S.user = (await getMeta('user')) || ''; S.lotes = (await getMeta('lotes')) || []; { const o = (await getMeta('opts')) || {}; S.opts = o.v === 2 ? { ...S.opts, ...o } : { ...S.opts, sello: o.sello !== false }; await setMeta('opts', S.opts); }
   const cat = await getMeta('cat'); if (cat) aplicarCatalogo(cat); else reindexEst();
   // un recorrido que quedó abierto (app cerrada) se marca como terminado
   for (const t of S.trk) if (!t.fin) { t.fin = t.pts.length ? t.pts[t.pts.length - 1].t : t.inicio; await put('trk', t); }
@@ -724,7 +766,7 @@ async function init() {
   $('btnEnviarDatos').onclick = enviarDatos; $('btnEnviarFotos').onclick = enviarFotos;
   $('btnScr').onclick = exportScr; $('btnKml').onclick = exportKml; $('btnPenz').onclick = exportPenz;
   $('btnUsuario').onclick = async () => { S.user = $('cfgUsuario').value.trim().toUpperCase(); await setMeta('user', S.user); toast('Nombre guardado'); renderTodo(); };
-  $('cfgOrig').onchange = $('cfgSello').onchange = async () => { S.opts = { orig: $('cfgOrig').checked, sello: $('cfgSello').checked }; await setMeta('opts', S.opts); };
+  $('cfgOrig').onchange = $('cfgSello').onchange = async () => { S.opts = { orig: $('cfgOrig').checked, sello: $('cfgSello').checked, v: 2 }; await setMeta('opts', S.opts); };
   $('cfgXlsx').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) cargarCatalogo(f); };
   $('btnRespaldo').onclick = respaldo; $('btnLiberar').onclick = liberar;
   $('modal').onclick = e => { if (e.target.id === 'modal') cerrarModal(); };

@@ -24,8 +24,8 @@ const Editor = (() => {
       </div>
       <div class="ed-modal hidden" id="edModal"><div class="ed-card">
         <div class="ed-mt" id="edMt">Cota</div>
-        <label id="edLCampo">Campo de la ficha<select id="edCampo"></select></label>
-        <label id="edLVal">Medida en campo<input id="edVal" inputmode="decimal" autocomplete="off"></label>
+        <label id="edLCampo">¿Qué medida es? (para que vaya a la ficha y al Excel)<select id="edCampo"></select></label>
+        <label id="edLVal">Medida en campo (en la unidad indicada: m = metros, ej. 1.20)<input id="edVal" inputmode="decimal" autocomplete="off"></label><div id="edAviso" class="ed-dis" style="color:#c00000"></div>
         <div id="edDis" class="ed-dis"></div>
         <label>Texto en la foto<input id="edTxt" autocomplete="off" placeholder="Ej. Largo exterior"></label>
         <div id="edPrev" class="ed-prev"></div>
@@ -128,13 +128,15 @@ const Editor = (() => {
     const esCota = f.t === 'cota';
     M.querySelector('#edMt').textContent = esCota ? 'Cota' : 'Texto';
     M.querySelector('#edLCampo').classList.toggle('hidden', !esCota || !E.campos.length);
-    sel.innerHTML = `<option value="">(solo texto, sin vincular)</option>` + E.campos.map(c => `<option value="${escH(c.id)}">${escH(c.comp ? c.comp + ' · ' : '')}${escH(c.label)}</option>`).join('');
+    sel.innerHTML = `<option value="">— elegir el campo (o solo texto) —</option>` + E.campos.map(c => `<option value="${escH(c.id)}">${escH(c.comp ? c.comp + ' · ' : '')}${escH(c.label)}</option>`).join('');
     sel.value = f.campo || ''; txt.value = f.etq || (esCota ? '' : f.txt || ''); val.value = f.v ?? '';
     const prev = () => {
       const c = E.campos.find(x => x.id === sel.value);
       M.querySelector('#edLVal').classList.toggle('hidden', !c);
       M.querySelector('#edDis').textContent = c ? `Diseño: ${c.dis ?? '—'} ${c.und || ''}` : '';
       M.querySelector('#edPrev').textContent = componer(c, val.value, txt.value) || '';
+      const sinCampo = esCota && !c && /\d/.test(txt.value);
+      M.querySelector('#edAviso').textContent = sinCampo ? 'Esta medida quedará solo como texto: elija el campo para que se registre en la ficha.' : (c && c.und === 'm' && +String(val.value).replace(',', '.') >= 10 ? '¿Está en cm? Este campo va en metros (ej. 0.91).' : '');
     };
     sel.onchange = () => { const c = E.campos.find(x => x.id === sel.value); if (c) { if (!txt.value) txt.value = c.corto; if (c.med !== null && c.med !== undefined && val.value === '') val.value = c.med; } prev(); };
     val.oninput = txt.oninput = prev; prev();
